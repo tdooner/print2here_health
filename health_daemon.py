@@ -39,6 +39,19 @@ class Status(DbBase):
     self.status = status
     self.error_flags = 0
 
+
+class Subscription(DbBase):
+  __tablename__ = "subscription"
+
+  id = Column(Integer, primary_key = True)
+  name = Column(String)
+  number = Column(String)
+
+  def __init__(self, name, number):
+    self.name = name
+    self.number = number
+
+
 def init_db():
   global db_engine
   global db_session_maker
@@ -86,6 +99,16 @@ def add_status(name, status):
   session.commit()
 
 
+def lookup_subscribers(printer):
+  subscribers = []
+  session = db_session_maker()
+  query = session.query(Subscription).filter(Subscription.name == printer)
+  for subscriber in query.all():
+    subscribers.append(subscriber.number)
+
+  return subscribers
+
+
 def send_sms(number, message):
   account = twilio.Account(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
   data = {'From': settings.TWILIO_PHONE_NUMBER,
@@ -104,8 +127,10 @@ def poll():
       pass
     elif health.is_offline(status) != health.is_offline(last_status):
       message = "Printer '%s' has changed state from '%s' to '%s'" % (printer, health.prettyprint_state(last_status), health.prettyprint_state(status))
-      send_sms(settings.ALERT_NUMBER, message)
-      print message
+      subscribers = lookup_subscribers(printer)
+      for number in subscribers:
+        send_sms(number, message)
+      print message + ", notified %i subscribers" % len(subscribers)
     add_status(printer, status)
 
 
