@@ -50,6 +50,21 @@ def is_offline(state):
     return False
 
 
+def get_pagecount(hostname):
+  errorIndication, errorStatus, errorIndex, varBinds = cmdgen.CommandGenerator().getCmd(
+    cmdgen.CommunityData('print2herehealth', 'public'),
+    cmdgen.UdpTransportTarget((hostname, 161)),
+    (1,3,6,1,2,1,43,10,2,1,4,1,1),
+  )
+  if errorIndication == 'requestTimedOut':
+    return 0 
+
+  if errorStatus:
+    raise SnmpError("Unknown error")
+
+  return int(varBinds[0][1])
+
+
 def get_health(hostname):
   errorIndication, errorStatus, errorIndex, varBinds = cmdgen.CommandGenerator().getCmd(
     cmdgen.CommunityData('print2herehealth', 'public'),
@@ -65,6 +80,7 @@ def get_health(hostname):
       
   deviceStatus = varBinds[0][1]
   errorState = ord(varBinds[1][1][0])
+
   if deviceStatus == 1:
     return UNKNOWN
   if deviceStatus == 2 or deviceStatus == 3:

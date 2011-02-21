@@ -33,12 +33,14 @@ class Status(DbBase):
   timestamp = Column(DateTime)
   name = Column(String)
   status = Column(Integer)
+  count = Column(Integer)
   error_flags = Column(Integer)
 
-  def __init__(self, timestamp, name, status):
+  def __init__(self, timestamp, name, status, count):
     self.timestamp = timestamp
     self.name = name
     self.status = status
+    self.count = count
     self.error_flags = 0
 
 
@@ -109,10 +111,10 @@ def get_last_status(name):
   return (status.timestamp, status.status)
 
 
-def add_status(name, status):
+def add_status(name, status, pagecount):
   now = datetime.now()  
   session = db_session_maker()
-  status_row = Status(now, name, status)
+  status_row = Status(now, name, status, pagecount)
   session.add(status_row)
   session.commit()
 
@@ -157,6 +159,7 @@ def send_sms(number, message):
 def poll():
   for printer in settings.PRINTERS:
     status = health.get_health(printer)
+    pagecount = health.get_pagecount(printer)
     (timestamp, last_status) = get_last_status(printer)
     if last_status == None:
       pass
@@ -169,7 +172,7 @@ def poll():
       start_outage(printer, status)
     elif not health.is_offline(status) and health.is_offline(last_status) and printer in outages:
       end_outage(printer)
-    add_status(printer, status)
+    add_status(printer, status, pagecount)
 
 
 if __name__ == "__main__":
