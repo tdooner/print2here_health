@@ -16,6 +16,8 @@ db_engine = None
 db_session_maker = None
 DbBase = declarative_base()
 
+outages = {}
+
 class ConfigError(Exception):
   def __init__(self, msg):
     self.value = msg
@@ -50,6 +52,22 @@ class Subscription(DbBase):
   def __init__(self, name, number):
     self.name = name
     self.number = number
+
+
+class Outage(DbBase):
+  __tablename__ = "outage"
+
+  id = Column(Integer, primary_key = True)
+  name = Column(String)
+  start = Column(DateTime)
+  end = Column(DateTime)
+  description = Column(String)
+
+  def __init__(self, name, start, end, desc):
+    self.name = name
+    self.start = start
+    self.end = end
+    self.description = desc
 
 
 def init_db():
@@ -99,6 +117,23 @@ def add_status(name, status):
   session.commit()
 
 
+def start_outage(name, description):
+  global outages
+  outage = Outage(name, datetime.now(), None, health.prettyprint_state(description))
+  outages[name] = outage
+  print "Opened outage for %s" % name
+
+
+def end_outage(name):
+  global outages
+  outage = outages[name]
+  outage.end = datetime.now()
+  session = db_session_maker()
+  session.add(outage)
+  session.commit()
+  del outages[name]
+  print "Ended outage for %s" % name
+
 def lookup_subscribers(printer):
   subscribers = []
   session = db_session_maker()
@@ -130,7 +165,10 @@ def poll():
       subscribers = lookup_subscribers(printer)
       for number in subscribers:
         send_sms(number, message)
-      print message + ", notified %i subscribers" % len(subscribers)
+    if health.is_offline(status) and not health.is_offline(last_status):
+      start_outage(printer, status)
+    elif not health.is_offline(status) and health.is_offline(last_status) and printer in outages:
+      end_outage(printer)
     add_status(printer, status)
 
 
