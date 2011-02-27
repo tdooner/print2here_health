@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey
 from sqlalchemy.types import DateTime
 from sqlalchemy.ext.declarative import declarative_base
@@ -64,13 +64,14 @@ class Outage(DbBase):
   start = Column(DateTime)
   end = Column(DateTime)
   description = Column(String)
+  length = Column(Integer)
 
-  def __init__(self, name, start, end, desc):
+  def __init__(self, name, start, end, desc, length):
     self.name = name
     self.start = start
     self.end = end
     self.description = desc
-
+    self.length = length
 
 def init_db():
   global db_engine
@@ -121,7 +122,7 @@ def add_status(name, status, pagecount):
 
 def start_outage(name, description):
   global outages
-  outage = Outage(name, datetime.now(), None, health.prettyprint_state(description))
+  outage = Outage(name, datetime.now(), None, health.prettyprint_state(description), 0)
   outages[name] = outage
   print "Opened outage for %s" % name
 
@@ -130,6 +131,7 @@ def end_outage(name):
   global outages
   outage = outages[name]
   outage.end = datetime.now()
+  outage.length = (outage.end - outage.start).total_seconds()
   session = db_session_maker()
   session.add(outage)
   session.commit()
