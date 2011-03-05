@@ -1,0 +1,18 @@
+This project contains a set of tools for monitoring and analysing the
+performance of the Print2Here program at Case Western Reserve University.
+
+Licensed under the BSD license, which is reproduced in the LICENSE file.
+This is not an official project of Case Western Reserve University.
+
+Required packages:
+- pysnmp
+- sqlalchemy (with SQLite3)
+- Twilio Python library
+
+Additionally, Python 2.7 is required.
+
+Installation instructions:
+
+1. Install required packages
+2. Edit settings.py to reflect your environment.
+3. Run health_daemon.py
