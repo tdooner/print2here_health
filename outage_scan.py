@@ -3,17 +3,17 @@
 from __future__ import division
 
 import settings
-import health_daemon as daemon
+import db as database
 from sqlalchemy.sql.expression import *
 from sqlalchemy import func
 
 pages = {}
 
-daemon.init_db()
-session = daemon.db_session_maker()
+db = database.HealthDatabase('polling.db')
+session = db.db_session_maker()
 
-polling_start = session.query(daemon.Status).first().timestamp
-polling_end = session.query(daemon.Status).order_by(desc(daemon.Status.timestamp)).first().timestamp
+polling_start = session.query(database.Status).first().timestamp
+polling_end = session.query(database.Status).order_by(desc(database.Status.timestamp)).first().timestamp
 polling_length = round((polling_end - polling_start).total_seconds())
 
 output = open(settings.REPORT_PAGE_PATH, 'w')
@@ -32,7 +32,7 @@ output.write("""<!DOCTYPE html>
   </tr>""")
 
 for printer in settings.PRINTERS:
-  cursor = session.query(func.sum(daemon.Outage.length)).filter(daemon.Outage.name == printer)
+  cursor = session.query(func.sum(database.Outage.length)).filter(database.Outage.name == printer)
   downtime = cursor.scalar()
   if not downtime:
     downtime = 0
