@@ -62,7 +62,7 @@ def poll():
             if health.is_offline(status) and not health.is_offline(last_status):
                 db.start_outage(printer, health.prettyprint_state(status))
                 print "Outage started for %s" % printer
-            elif not health.is_offline(status) and health.is_offline(last_status) and printer in db.outages:
+            elif not health.is_offline(status) and health.is_offline(last_status) and db.outage_exists(printer):
                 db.end_outage(printer)
                 print "Outage ended for %s" % printer
         db.add_status(printer, status, pagecount)

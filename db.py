@@ -5,12 +5,16 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql.expression import desc
 from sqlalchemy.sql.expression import *
 from sqlalchemy import func
-
+from sqlalchemy.orm.exc import *
 from datetime import datetime
 
 import sqlalchemy
 
 DbBase = declarative_base()
+
+class DatabaseEmptyException(Exception):
+    pass
+
 
 class Status(DbBase):
     __tablename__ = "status"
@@ -72,7 +76,18 @@ class HealthDatabase():
         self.db_metadata = DbBase.metadata
         self.db_metadata.create_all(self.db_engine)
         self.db_session_maker = sessionmaker(bind=self.db_engine)
+        self.do_cache_check()
 
+    def do_cache_check(self):
+        try:
+            last_poll_time = self.get_db_end()
+        except DatabaseEmptyException:
+            return
+
+        # Flush outages if db is more than 10 minutes old
+        if (datetime.now() - last_poll_time).total_seconds() > 600:
+            session = self.db_session_maker()
+            session.query(Outage).filter(Outage.end == None).delete()
 
     def get_last_status(self, name):
         session = self.db_session_maker()
@@ -87,7 +102,10 @@ class HealthDatabase():
 
     def get_db_end(self):
         session = self.db_session_maker()
-        return session.query(Status).order_by(desc(Status.timestamp)).first().timestamp
+        try:
+            return session.query(Status).order_by(desc(Status.timestamp)).first().timestamp
+        except AttributeError:
+            raise DatabaseEmptyException
 
     def get_downtime(self, name):
         session = self.db_session_maker()
@@ -103,19 +121,31 @@ class HealthDatabase():
         session.add(status_row)
         session.commit()
 
-    # Bleh... should persist this to the db
     def start_outage(self, name, description):
-        outage = Outage(name, datetime.now(), None, description, 0)
-        self.outages[name] = outage
-
-    def end_outage(self, name):
-        outage = self.outages[name]
-        outage.end = datetime.now()
-        outage.length = (outage.end - outage.start).total_seconds()
         session = self.db_session_maker()
+        outage = Outage(name, datetime.now(), None, description, 0)
         session.add(outage)
         session.commit()
-        del self.outages[name]
+
+    def end_outage(self, name):
+        session = self.db_session_maker()
+
+        # Technically this can raise an exception, but the db is probably fucked if it does
+        # so halting is the safest option (indicates that a second process is hitting the 
+        # db at the same time, or our cache clear isn't working properly)
+        outage = session.query(Outage).filter(Outage.name == name).filter(Outage.end == None).one()
+        outage.end = datetime.now()
+        outage.length = (outage.end - outage.start).total_seconds()
+        session.add(outage)
+        session.commit()
+
+    def outage_exists(self, name):
+        session = self.db_session_maker()
+        try:
+            session.query(Outage).filter(Outage.name == name).filter(Outage.end == None).one()
+        except NoResultFound:
+            return False
+        return True
 
     def lookup_subscribers(self, printer):
         subscribers = []
