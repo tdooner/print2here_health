@@ -4,16 +4,13 @@ from __future__ import division
 
 import settings
 import db as database
-from sqlalchemy.sql.expression import *
-from sqlalchemy import func
 
 pages = {}
 
 db = database.HealthDatabase('polling.db')
-session = db.db_session_maker()
 
-polling_start = session.query(database.Status).first().timestamp
-polling_end = session.query(database.Status).order_by(desc(database.Status.timestamp)).first().timestamp
+polling_start = db.get_db_start() 
+polling_end = db.get_db_end()
 polling_length = round((polling_end - polling_start).total_seconds())
 
 output = open(settings.REPORT_PAGE_PATH, 'w')
@@ -32,10 +29,7 @@ output.write("""<!DOCTYPE html>
   </tr>""")
 
 for printer in settings.PRINTERS:
-  cursor = session.query(func.sum(database.Outage.length)).filter(database.Outage.name == printer)
-  downtime = cursor.scalar()
-  if not downtime:
-    downtime = 0
+  downtime = db.get_downtime(printer) 
   percent = round(((1 - (downtime / polling_length)) * 100), 2)
   output.write("""
   <tr>

@@ -3,6 +3,9 @@ from sqlalchemy.types import DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql.expression import desc
+from sqlalchemy.sql.expression import *
+from sqlalchemy import func
+
 from datetime import datetime
 
 import sqlalchemy
@@ -78,6 +81,20 @@ class HealthDatabase():
             return (None, None)
         return (status.timestamp, status.status)
 
+    def get_db_start(self):
+        session = self.db_session_maker()
+        return session.query(Status).first().timestamp
+
+    def get_db_end(self):
+        session = self.db_session_maker()
+        return session.query(Status).order_by(desc(Status.timestamp)).first().timestamp
+
+    def get_downtime(self, name):
+        session = self.db_session_maker()
+        cursor = session.query(func.sum(Outage.length)).filter(Outage.name == name)
+        if not cursor.scalar():
+            return 0
+        return cursor.scalar()
 
     def add_status(self, name, status, pagecount):
         now = datetime.now()  
