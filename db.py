@@ -114,6 +114,13 @@ class HealthDatabase():
             return 0
         return cursor.scalar()
 
+    def get_average_downtime(self, name):
+        session = self.db_session_maker()
+        cursor = session.query(func.avg(Outage.length)).filter(Outage.name == name)
+        if not cursor.scalar():
+            return 0
+        return cursor.scalar()
+
     def add_status(self, name, status, pagecount):
         now = datetime.now()  
         session = self.db_session_maker()
