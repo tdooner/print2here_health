@@ -46,11 +46,21 @@ def main():
     output.write("""<!DOCTYPE html>
     <html>
     <head>
+      <meta charset="UTF-8">
       <title>Print2Here Reliability Statistics</title>
+      <style type="text/css">
+      table.main {
+        border: gray solid 1px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      table.main td {
+        border: gray solid 1px;
+      }
+      </style>
     </head>
     <body>
-    <center>
-    <table border="1">
+    <table class="main">
       <tr>
         <td>Printer</td>
         <td>Percent Uptime</td>
@@ -70,7 +80,6 @@ def main():
 
     output.write("""
     </table>
-    </center>
     Statistics gathered from %s to %s
     </body>
     </html>""" % (polling_start.strftime('%Y-%m-%d %H:%M:%S'), polling_end.strftime('%Y-%m-%d %H:%M:%S')))
