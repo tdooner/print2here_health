@@ -68,15 +68,13 @@ class HealthDatabase():
     db_engine = None
     db_session_maker = None
 
-    # OMG MASSIVE HACK FIX THIS NAOW
-    outages = {}
-
-    def __init__(self, dbfile):
+    def __init__(self, dbfile, check_cache = True):
         self.db_engine = sqlalchemy.create_engine('sqlite:///%s' % dbfile)
         self.db_metadata = DbBase.metadata
         self.db_metadata.create_all(self.db_engine)
         self.db_session_maker = sessionmaker(bind=self.db_engine)
-        self.do_cache_check()
+        if check_cache:
+            self.do_cache_check()
 
     def do_cache_check(self):
         try:

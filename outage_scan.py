@@ -35,7 +35,7 @@ def seconds_to_string(seconds):
     return string[:-2]
 
 def main():
-    db = database.HealthDatabase('polling.db')
+    db = database.HealthDatabase('polling.db', check_cache = False)
 
     polling_start = db.get_db_start() 
     polling_end = db.get_db_end()
