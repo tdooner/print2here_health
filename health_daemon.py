@@ -15,16 +15,17 @@ class ConfigError(Exception):
 
 def check_config():
     try:
-        if len(settings.TWILIO_ACCOUNT_SID) != 34:
-            raise ConfigError("Twilio account SID is too short to be valid")
-        if settings.TWILIO_ACCOUNT_SID[0:2] != 'AC':
-            raise ConfigError("Twilio account SID is invalid")
-        if len(settings.TWILIO_AUTH_TOKEN) != 32:
-            raise ConfigError("Twilio auth token is too short to be valid")
-        if settings.TWILIO_PHONE_NUMBER == '':
-            raise ConfigError("Twilio phone number not set")
-        if settings.TWILIO_API_VERSION == '':
-            raise ConfigError("Twilio API version not set")
+        if settings.ENABLE_SMS:
+            if len(settings.TWILIO_ACCOUNT_SID) != 34:
+                raise ConfigError("Twilio account SID is too short to be valid")
+            if settings.TWILIO_ACCOUNT_SID[0:2] != 'AC':
+                raise ConfigError("Twilio account SID is invalid")
+            if len(settings.TWILIO_AUTH_TOKEN) != 32:
+                raise ConfigError("Twilio auth token is too short to be valid")
+            if settings.TWILIO_PHONE_NUMBER == '':
+                raise ConfigError("Twilio phone number not set")
+            if settings.TWILIO_API_VERSION == '':
+                raise ConfigError("Twilio API version not set")
         if len(settings.PRINTERS) < 1:
             raise ConfigError("No printers set to be polled")
         if not settings.INTERVAL:
@@ -36,9 +37,11 @@ def check_config():
   
 def poll():
     db = print2here.db.HealthDatabase('polling.db')
-    notifier = print2here.sms.SmsNotifier(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN,
-        settings.TWILIO_PHONE_NUMBER, settings.TWILIO_API_VERSION)
-
+    if settings.ENABLE_SMS:
+        notifier = print2here.sms.SmsNotifier(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN,
+            settings.TWILIO_PHONE_NUMBER, settings.TWILIO_API_VERSION)
+    else:
+        notifier = None
     for printer in settings.PRINTERS:
         status = print2here.snmp.get_health(printer)
         pagecount = print2here.snmp.get_pagecount(printer)
@@ -46,13 +49,15 @@ def poll():
         if last_status == None:
             pass
         elif print2here.snmp.is_offline(status) != print2here.snmp.is_offline(last_status):
-            message = "Printer '%s' has changed state from '%s' to '%s'" % (printer, 
-                print2here.snmp.prettyprint_state(last_status),
-                print2here.snmp.prettyprint_state(status))
+            if settings.ENABLE_SMS:
+                message = "Printer '%s' has changed state from '%s' to '%s'" % (printer, 
+                    print2here.snmp.prettyprint_state(last_status),
+                    print2here.snmp.prettyprint_state(status))
 
-            subscribers = db.lookup_subscribers(printer)
-            for number in subscribers:
-                notifier.send_sms(number, message)
+                subscribers = db.lookup_subscribers(printer)
+                for number in subscribers:
+                    notifier.send_sms(number, message)
+
             if print2here.snmp.is_offline(status) and not print2here.snmp.is_offline(last_status):
                 db.start_outage(printer, print2here.snmp.prettyprint_state(status))
                 print "Outage started for %s" % printer

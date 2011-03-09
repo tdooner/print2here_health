@@ -2,6 +2,8 @@ PRINTERS = ('print2carlton', 'print2fribley', 'print2wade', 'print2village', 'pr
 INTERVAL = 60
 ALERT_NUMBER = ''
 
+ENABLE_SMS = False
+
 TWILIO_ACCOUNT_SID = ''
 TWILIO_AUTH_TOKEN = ''
 TWILIO_PHONE_NUMBER = ''
