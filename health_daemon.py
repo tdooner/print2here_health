@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
-import printer_health as health
-import db as database
+import print2here.snmp
+import print2here.db
 import sys
 import time
 import twilio
@@ -45,24 +45,26 @@ def send_sms(number, message):
 
   
 def poll():
-    db = database.HealthDatabase('polling.db')
+    db = print2here.db.HealthDatabase('polling.db')
     for printer in settings.PRINTERS:
-        status = health.get_health(printer)
-        pagecount = health.get_pagecount(printer)
+        status = print2here.snmp.get_health(printer)
+        pagecount = print2here.snmp.get_pagecount(printer)
         (timestamp, last_status) = db.get_last_status(printer)
         if last_status == None:
             pass
-        elif health.is_offline(status) != health.is_offline(last_status):
+        elif print2here.snmp.is_offline(status) != print2here.snmp.is_offline(last_status):
             message = "Printer '%s' has changed state from '%s' to '%s'" % (printer, 
-                health.prettyprint_state(last_status), health.prettyprint_state(status))
+                print2here.snmp.prettyprint_state(last_status),
+                print2here.snmp.prettyprint_state(status))
 
             subscribers = db.lookup_subscribers(printer)
             for number in subscribers:
                 send_sms(number, message)
-            if health.is_offline(status) and not health.is_offline(last_status):
-                db.start_outage(printer, health.prettyprint_state(status))
+            if print2here.snmp.is_offline(status) and not print2here.snmp.is_offline(last_status):
+                db.start_outage(printer, print2here.snmp.prettyprint_state(status))
                 print "Outage started for %s" % printer
-            elif not health.is_offline(status) and health.is_offline(last_status) and db.outage_exists(printer):
+            elif not print2here.snmp.is_offline(status) and print2here.snmp.is_offline(last_status) \
+              and db.outage_exists(printer):
                 db.end_outage(printer)
                 print "Outage ended for %s" % printer
         db.add_status(printer, status, pagecount)
