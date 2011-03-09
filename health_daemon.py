@@ -1,9 +1,9 @@
 #!/usr/bin/env python2.7
 import print2here.snmp
 import print2here.db
+import print2here.sms
 import sys
 import time
-import twilio
 from datetime import datetime
 
 class ConfigError(Exception):
@@ -33,19 +33,12 @@ def check_config():
         raise
     except Exception, e:
         raise ConfigError(str(e))
-
-def send_sms(number, message):
-    account = twilio.Account(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-    data = {'From': settings.TWILIO_PHONE_NUMBER,
-            'To': number,
-            'Body': message
-    }
-    account.request('/%s/Accounts/%s/SMS/Messages' % (settings.TWILIO_API_VERSION, settings.TWILIO_ACCOUNT_SID), \
-        'POST', data)
-
   
 def poll():
     db = print2here.db.HealthDatabase('polling.db')
+    notifier = print2here.sms.SmsNotifier(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN,
+        settings.TWILIO_PHONE_NUMBER, settings.TWILIO_API_VERSION)
+
     for printer in settings.PRINTERS:
         status = print2here.snmp.get_health(printer)
         pagecount = print2here.snmp.get_pagecount(printer)
@@ -59,7 +52,7 @@ def poll():
 
             subscribers = db.lookup_subscribers(printer)
             for number in subscribers:
-                send_sms(number, message)
+                notifier.send_sms(number, message)
             if print2here.snmp.is_offline(status) and not print2here.snmp.is_offline(last_status):
                 db.start_outage(printer, print2here.snmp.prettyprint_state(status))
                 print "Outage started for %s" % printer
