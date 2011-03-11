@@ -9,7 +9,6 @@ from sqlalchemy.orm.exc import *
 from datetime import datetime
 
 import sqlalchemy
-import snmp
 
 DbBase = declarative_base()
 
@@ -211,8 +210,13 @@ class HealthDatabase():
             if prior_update == None:
                 prior_update = update
                 continue
-            if update.status != snmp.AVAILABLE:
+
+            # Normally we could check the status of the printer to see if we should include
+            # the update, but sometimes the printer will report itself as Available while
+            # reporting a page count of 0
+            if update.count == 0:
                 continue
+
             delta = update.count - prior_update.count
             if delta > 0:
                 counter.count += delta
@@ -225,6 +229,7 @@ class HealthDatabase():
                 # It's extremely ghetto, but should suffice without losing accuracy.
                 counter.count += update.count
             prior_update = update
+
         if prior_update:
             counter.last_status_id = prior_update.id
         session.add(counter)
