@@ -134,6 +134,11 @@ class HealthDatabase():
         if not cursor.scalar():
             return 0
         return cursor.scalar()
+    
+    def get_total_outages(self, name):
+        session = self.db_session_maker()
+        count = session.query(Outage).filter(Outage.name == name).count()
+        return count
 
     def add_status(self, name, status, pagecount):
         now = datetime.now()  
