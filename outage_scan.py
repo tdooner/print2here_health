@@ -65,19 +65,23 @@ def main():
         <td>Printer</td>
         <td>Percent Uptime</td>
         <td>Average Outage Length</td>
+        <td>Average Pages Between Outages</td>
       </tr>""")
 
     for printer in settings.PRINTERS:
-        db.update_page_counts(printer)
         downtime = db.get_downtime(printer) 
         avg_downtime = db.get_average_downtime(printer)
+        outages = db.get_total_outages(printer)
+        pages = db.get_page_count(printer)
         percent = round(((1 - (downtime / polling_length)) * 100), 2)
+        pages_per_outage = str(round((pages / outages), 0))[:-2]
         output.write("""
       <tr>
         <td>%s</td>
         <td>%s%%</td>
         <td>%s</td>
-      </tr>""" % (printer, percent, seconds_to_string(avg_downtime)))
+        <td>%s</td>
+      </tr>""" % (printer, percent, seconds_to_string(avg_downtime), pages_per_outage))
 
     output.write("""
     </table>
