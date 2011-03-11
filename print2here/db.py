@@ -9,6 +9,7 @@ from sqlalchemy.orm.exc import *
 from datetime import datetime
 
 import sqlalchemy
+import snmp
 
 DbBase = declarative_base()
 
@@ -62,6 +63,21 @@ class Outage(DbBase):
         self.end = end
         self.description = desc
         self.length = length
+
+
+class PageCounter(DbBase):
+    __tablename__ = "page_count"
+
+    id = Column(Integer, primary_key = True)
+    name = Column(String)
+    last_status_id = Column(Integer, ForeignKey('status.id'))
+    count = Column(Integer)
+
+    def __init__(self, name, last_status, count):
+        self.name = name
+        self.last_status_id = last_status
+        self.count = count
+
 
 class HealthDatabase():
     
@@ -160,3 +176,45 @@ class HealthDatabase():
             subscribers.append(subscriber.number)
 
         return subscribers
+
+    def update_page_counts(self, printer):
+        session = self.db_session_maker()
+        try:
+            counter = session.query(PageCounter).filter(PageCounter.name == printer).one()
+        except NoResultFound:
+            first_update = session.query(Status).filter(Status.name == printer).first()
+            counter = PageCounter(printer, first_update.id, 0)
+        newer_updates = session.query(Status).filter(Status.name == printer)\
+            .filter(Status.id > counter.last_status_id)
+
+        # This is a massive hack because SQLAlchemy doesn't use an iterator interface on its
+        # Query objects. This will most likely need to be changed so that it implements its own
+        # iterator in the future, as loading a subset of the entire Status table is probably
+        # going to be very slow at some point in the near future (the .all() method executes
+        # the SELECT and returns the data as a Python list (yeah, painful, I know))
+        # The other option is to add a "delta" field to the Status table, but that would require
+        # a SELECT of 2+ prior rows in cases where the printer is offline and reporting a 0 page count
+        # so that we can properly determine the delta value using the last known good update
+        prior_update = None
+        for update in newer_updates.all():
+            if prior_update == None:
+                prior_update = update
+                continue
+            if update.status != snmp.AVAILABLE:
+                continue
+            delta = update.count - prior_update.count
+            if delta > 0:
+                counter.count += delta
+            elif delta < -50:
+                # Most likely case is that the printer was rebooted and the counter objects
+                # in SNMP were reset, so that the current count reflects the number of pages
+                # since the initial value of 0. We can safely add the count by itself.
+                # Sometimes the printers seem to randomly decrement their page counts by a small
+                # number, so we guard against this by making sure there's a large negative delta.
+                # It's extremely ghetto, but should suffice without losing accuracy.
+                counter.count += update.count
+            prior_update = update
+        if prior_update:
+            counter.last_status_id = prior_update.id
+        session.add(counter)
+        session.commit()

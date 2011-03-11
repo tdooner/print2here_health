@@ -68,6 +68,7 @@ def main():
       </tr>""")
 
     for printer in settings.PRINTERS:
+        db.update_page_counts(printer)
         downtime = db.get_downtime(printer) 
         avg_downtime = db.get_average_downtime(printer)
         percent = round(((1 - (downtime / polling_length)) * 100), 2)
