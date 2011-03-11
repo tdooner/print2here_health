@@ -140,6 +140,12 @@ class HealthDatabase():
         count = session.query(Outage).filter(Outage.name == name).count()
         return count
 
+    def get_page_count(self, name):
+        self.update_page_counts(name)
+        session = self.db_session_maker()
+        count = session.query(PageCounter).filter(PageCounter.name == name).one().count
+        return count
+
     def add_status(self, name, status, pagecount):
         now = datetime.now()  
         session = self.db_session_maker()
