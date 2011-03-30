@@ -53,10 +53,10 @@ def poll():
                 message = "Printer '%s' has changed state from '%s' to '%s'" % (printer, 
                     print2here.snmp.prettyprint_state(last_status),
                     print2here.snmp.prettyprint_state(status))
-
-                subscribers = db.lookup_subscribers(printer)
-                for number in subscribers:
-                    notifier.send_sms(number, message)
+                if print2here.snmp.is_offline(status):
+                    subscribers = db.lookup_subscribers(printer)
+                    for number in subscribers:
+                        notifier.send_sms(number, message)
 
             if print2here.snmp.is_offline(status) and not print2here.snmp.is_offline(last_status):
                 db.start_outage(printer, print2here.snmp.prettyprint_state(status))
