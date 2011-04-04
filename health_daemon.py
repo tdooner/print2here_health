@@ -56,7 +56,10 @@ def poll():
                 if print2here.snmp.is_offline(status):
                     subscribers = db.lookup_subscribers(printer)
                     for number in subscribers:
-                        notifier.send_sms(number, message)
+                        try:
+                            notifier.send_sms(number, message)
+                        except print2here.sms.SmsException:
+                            print "Error while sending SMS to %s" % number
 
             if print2here.snmp.is_offline(status) and not print2here.snmp.is_offline(last_status):
                 db.start_outage(printer, print2here.snmp.prettyprint_state(status))

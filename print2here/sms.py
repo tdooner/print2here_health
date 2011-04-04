@@ -1,4 +1,8 @@
 import twilio
+import urllib2
+
+class SmsException(Exception):
+    pass
 
 class SmsNotifier:
     
@@ -14,5 +18,8 @@ class SmsNotifier:
                 'To': number,
                 'Body': message
         }
-        account.request('/%s/Accounts/%s/SMS/Messages' % (self.api_version, self.account_sid), \
-            'POST', data)
+        try:
+            account.request('/%s/Accounts/%s/SMS/Messages' % (self.api_version, self.account_sid), \
+                'POST', data)
+        except urllib2.HTTPError:
+            raise SmsException
