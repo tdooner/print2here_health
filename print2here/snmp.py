@@ -83,7 +83,7 @@ def get_health(hostname):
 
     if deviceStatus == 1:
         return UNKNOWN
-    if deviceStatus == 2 or deviceStatus == 3:
+    if deviceStatus in (2,3,4):
         return AVAILABLE
     else:
         if errorState & 0x04:
