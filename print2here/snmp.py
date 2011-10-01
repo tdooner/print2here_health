@@ -85,6 +85,8 @@ def get_health(hostname):
         return UNKNOWN
     if deviceStatus in (2,3,4):
         return AVAILABLE
+    if deviceStatus == 5:
+        return OFFLINE
     else:
         if errorState & 0x04:
             return JAMMED
