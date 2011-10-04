@@ -1,25 +1,27 @@
-import twilio
+import urllib
 import urllib2
-
-class SmsException(Exception):
-    pass
 
 class SmsNotifier:
     
-    def __init__(self, sid, auth, number, api):
+    def __init__(self, sid, auth, number):
         self.account_sid = sid
         self.auth_token = auth
         self.phone_number = number
-        self.api_version = api
 
     def send_sms(self, number, message):
-        account = twilio.Account(self.account_sid, self.auth_token)
-        data = {'From': self.phone_number,
+        data = urllib.urlencode({'From': self.phone_number,
                 'To': number,
                 'Body': message
-        }
+        })
+
         try:
-            account.request('/%s/Accounts/%s/SMS/Messages' % (self.api_version, self.account_sid), \
-                'POST', data)
+            password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+            password_mgr.add_password(None, 'https://api.twilio.com/2010-04-01', self.account_sid, self.auth_token)
+            handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+            opener = urllib2.build_opener(handler)
+
+            req = opener.open("https://api.twilio.com/2010-04-01/Accounts/%s/SMS/Messages" % self.account_sid, data)
+            req.read()
+            req.close()
         except urllib2.HTTPError:
-            raise SmsException
+            raise

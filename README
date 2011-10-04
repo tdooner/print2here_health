@@ -6,8 +6,7 @@ This is not an official project of Case Western Reserve University.
 
 Required packages:
 - pysnmp
-- sqlalchemy (with SQLite3)
-- Twilio Python library
+- psycopg2
 
 Additionally, Python 2.7 is required.
 

@@ -22,8 +22,6 @@ def check_config():
                 raise ConfigError("Twilio auth token is too short to be valid")
             if settings.TWILIO_PHONE_NUMBER == '':
                 raise ConfigError("Twilio phone number not set")
-            if settings.TWILIO_API_VERSION == '':
-                raise ConfigError("Twilio API version not set")
         if len(settings.PRINTERS) < 1:
             raise ConfigError("No printers set to be polled")
         if not settings.INTERVAL:
@@ -40,7 +38,7 @@ def poll():
 
     if settings.ENABLE_SMS:
         notifier = print2here.sms.SmsNotifier(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN,
-            settings.TWILIO_PHONE_NUMBER, settings.TWILIO_API_VERSION)
+            settings.TWILIO_PHONE_NUMBER)
     else:
         notifier = None
     for printer in settings.PRINTERS:
