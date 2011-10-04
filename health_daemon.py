@@ -1,10 +1,8 @@
 #!/usr/bin/env python2.7
 import print2here.snmp
-import print2here.db
-import print2here.sms
 import sys
 import time
-from datetime import datetime
+import psycopg2
 
 class ConfigError(Exception):
     def __init__(self, msg):
@@ -36,7 +34,10 @@ def check_config():
         raise ConfigError(str(e))
   
 def poll():
-    db = print2here.db.HealthDatabase('polling.db')
+    
+    db_conn = psycopg2.connect("dbname=print2here user=print2here")
+    db_cursor = db_conn.cursor()
+
     if settings.ENABLE_SMS:
         notifier = print2here.sms.SmsNotifier(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN,
             settings.TWILIO_PHONE_NUMBER, settings.TWILIO_API_VERSION)
@@ -45,31 +46,46 @@ def poll():
     for printer in settings.PRINTERS:
         status = print2here.snmp.get_health(printer)
         pagecount = print2here.snmp.get_pagecount(printer)
-        (timestamp, last_status) = db.get_last_status(printer)
-        if last_status == None:
-            pass
-        elif print2here.snmp.is_offline(status) != print2here.snmp.is_offline(last_status):
-            if settings.ENABLE_SMS:
-                message = "Printer '%s' has changed state from '%s' to '%s'" % (printer, 
-                    print2here.snmp.prettyprint_state(last_status),
-                    print2here.snmp.prettyprint_state(status))
-                if print2here.snmp.is_offline(status):
-                    subscribers = db.lookup_subscribers(printer)
-                    for number in subscribers:
-                        try:
-                            notifier.send_sms(number, message)
-                        except print2here.sms.SmsException:
-                            print "Error while sending SMS to %s" % number
+        db_cursor.execute("SELECT status FROM status WHERE name=%s ORDER BY id DESC LIMIT 1", (printer,))
+        try:
+            (last_status,) = db_cursor.fetchone()
+        except psycopg2.ProgrammingError:
+            last_status = None
+        if last_status is not None:    
+            if print2here.snmp.is_offline(status) != print2here.snmp.is_offline(last_status):
+                if settings.ENABLE_SMS:
+                    message = "Printer '%s' has changed state from '%s' to '%s'" % (printer, 
+                        print2here.snmp.prettyprint_state(last_status),
+                        print2here.snmp.prettyprint_state(status))
+                    
+                    if print2here.snmp.is_offline(status):
+                        db_cursor.execute("SELECT number FROM subscription WHERE name=%s", (printer,)) 
+                        for number in db_cursor:
+                            try:
+                                notifier.send_sms(number, message)
+                            except:
+                                print "Error while sending SMS to %s" % number
 
-            if print2here.snmp.is_offline(status) and not print2here.snmp.is_offline(last_status):
-                db.start_outage(printer, print2here.snmp.prettyprint_state(status))
-                print "Outage started for %s" % printer
-            elif not print2here.snmp.is_offline(status) and print2here.snmp.is_offline(last_status) \
-              and db.outage_exists(printer):
-                db.end_outage(printer)
-                print "Outage ended for %s" % printer
-        db.add_status(printer, status, pagecount)
+                db_cursor.execute("SELECT * FROM outage WHERE name=%s AND \"end\" IS NULL", (printer,))
+                if db_cursor.rowcount > 0:
+                    outage_exists = True
+                else:
+                    outage_exists = False
 
+                if not outage_exists and print2here.snmp.is_offline(status):
+                    db_cursor.execute("INSERT INTO outage (name, start, description) VALUES (%s, CURRENT_TIMESTAMP, %s)", \
+                      (printer, status))
+                    print "Outage started for %s" % printer
+                
+                elif outage_exists and not print2here.snmp.is_offline(status):
+                    db_cursor.execute("UPDATE outage SET \"end\"=CURRENT_TIMESTAMP WHERE name=%s AND \"end\" IS NULL", (printer,))
+                    print "Outage ended for %s" % printer
+       
+        db_cursor.execute("INSERT INTO status (timestamp, name, status, count) VALUES (CURRENT_TIMESTAMP, %s, %s, %s)", \
+            (printer, status, pagecount))
+    db_conn.commit()
+    db_cursor.close()
+    db_conn.close()
 
 if __name__ == "__main__":
     try:
@@ -77,6 +93,8 @@ if __name__ == "__main__":
     except ImportError:
         raise ConfigError("settings.py not found")
     check_config()
+    if settings.ENABLE_SMS:
+        import print2here.sms
     while 1:
         poll()
         time.sleep(settings.INTERVAL)

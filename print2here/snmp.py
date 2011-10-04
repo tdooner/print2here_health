@@ -2,13 +2,13 @@
 from pysnmp.entity.rfc3413.oneliner import cmdgen
 import sys
 
-UNKNOWN = 0
-AVAILABLE = 1
-OFFLINE = 2
-JAMMED = 3
-DOOR_OPEN = 4
-NO_TONER = 5
-NO_PAPER = 6
+UNKNOWN = 'U' 
+AVAILABLE = 'A'
+OFFLINE = 'O'
+JAMMED = 'J'
+DOOR_OPEN = 'D'
+NO_TONER = 'T'
+NO_PAPER = 'P'
 
 class SnmpError(Exception):
     def __init__(self, val):
@@ -44,9 +44,9 @@ def prettyprint_state(state):
 
 
 def is_offline(state):
-    if state in (0, 2, 3, 4, 5, 6):
+    if state in (UNKNOWN, OFFLINE, JAMMED, DOOR_OPEN, NO_TONER, NO_PAPER):
         return True
-    elif state in (1,):
+    elif state in (AVAILABLE,):
         return False
 
 
