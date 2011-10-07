@@ -19,6 +19,8 @@ CREATE TABLE periods (
     "end" timestamp without time zone NOT NULL,
     name character varying(15) NOT NULL,
     status character(1) NOT NULL,
+    start_count integer NOT NULL,
+    end_count integer NOT NULL,
     groupid integer NOT NULL
 );
 
@@ -46,6 +48,15 @@ ALTER TABLE ONLY subscription
     ADD CONSTRAINT subscription_pkey PRIMARY KEY (id);
 
 ---
+--- VIEWS
+---
+
+CREATE VIEW PeriodsSummary AS
+        SELECT start, ("end" - start) AS duration, name, status, (end_count - start_count) AS delta_count
+        FROM Periods
+        ORDER BY start;
+
+---
 --- FUNCTIONS
 ---
 
@@ -59,14 +70,14 @@ BEGIN
     SELECT groupid, status INTO last_group_number, last_status FROM Periods WHERE name=NEW.name ORDER BY id DESC LIMIT 1;
 
     IF NOT FOUND THEN
-        INSERT INTO Periods ("start", "end", name, status, groupid) VALUES (NEW.timestamp, NEW.timestamp, NEW.name, NEW.status, 0);
+        INSERT INTO Periods ("start", "end", start_count, end_count, name, status, groupid) VALUES (NEW.timestamp, NEW.timestamp, NEW.count, NEW.count, NEW.name, NEW.status, 0);
         RETURN NEW;
     END IF;
 
-    UPDATE Periods SET "end" = NEW.timestamp WHERE name=NEW.name AND groupid=last_group_number;
+    UPDATE Periods SET "end" = NEW.timestamp, end_count = NEW.count WHERE name=NEW.name AND groupid=last_group_number;
 
     IF last_status <> NEW.status THEN
-        INSERT INTO Periods ("start", "end", name, status, groupid) VALUES (NEW.timestamp, NEW.timestamp, NEW.name, NEW.status, last_group_number + 1);
+        INSERT INTO Periods ("start", "end", start_count, end_count, name, status, groupid) VALUES (NEW.timestamp, NEW.timestamp, NEW.count, NEW.count, NEW.name, NEW.status, last_group_number + 1);
         RETURN NEW;
     END IF;
 
