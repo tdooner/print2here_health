@@ -47,7 +47,7 @@ def poll():
         db_cursor.execute("SELECT status FROM status WHERE name=%s ORDER BY id DESC LIMIT 1", (printer,))
         try:
             (last_status,) = db_cursor.fetchone()
-        except psycopg2.ProgrammingError:
+        except TypeError: 
             last_status = None
         if last_status is not None:    
             if print2here.snmp.is_offline(status) != print2here.snmp.is_offline(last_status):
