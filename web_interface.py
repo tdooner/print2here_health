@@ -33,6 +33,7 @@ InterfaceTemplate = Template("""
 </tr>
 % endfor
 </table>
+</center>
 </body>
 </html>
 """)
@@ -45,12 +46,12 @@ class Print2HereWeb:
         db_cursor.execute("""
 SELECT P.name AS name,
 (
-    SELECT AVG(duration) FROM PeriodsSummary P2
+    SELECT date_trunc('second', AVG(duration)) FROM PeriodsSummary P2
     WHERE P2.name = P.name
     AND P2.status = 'A'
 ) AS mttf,
 (
-    SELECT AVG(duration) FROM PeriodsSummary P2
+    SELECT date_trunc('second', AVG(duration)) FROM PeriodsSummary P2
     WHERE P2.name = P.name
     AND P2.status != 'A'
 ) AS mttr,
