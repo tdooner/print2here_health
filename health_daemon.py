@@ -44,7 +44,7 @@ def poll():
     for printer in settings.PRINTERS:
         status = print2here.snmp.get_health(printer)
         pagecount = print2here.snmp.get_pagecount(printer)
-        db_cursor.execute("SELECT status FROM status WHERE name=%s ORDER BY id DESC LIMIT 1", (printer,))
+        db_cursor.execute("SELECT status FROM status WHERE name=%s ORDER BY timestamp DESC LIMIT 1", (printer,))
         try:
             (last_status,) = db_cursor.fetchone()
         except TypeError: 
@@ -63,22 +63,7 @@ def poll():
                                 notifier.send_sms(number, message)
                             except:
                                 print "Error while sending SMS to %s" % number
-
-                db_cursor.execute("SELECT * FROM outage WHERE name=%s AND \"end\" IS NULL", (printer,))
-                if db_cursor.rowcount > 0:
-                    outage_exists = True
-                else:
-                    outage_exists = False
-
-                if not outage_exists and print2here.snmp.is_offline(status):
-                    db_cursor.execute("INSERT INTO outage (name, start, description) VALUES (%s, CURRENT_TIMESTAMP, %s)", \
-                      (printer, status))
-                    print "Outage started for %s" % printer
-                
-                elif outage_exists and not print2here.snmp.is_offline(status):
-                    db_cursor.execute("UPDATE outage SET \"end\"=CURRENT_TIMESTAMP WHERE name=%s AND \"end\" IS NULL", (printer,))
-                    print "Outage ended for %s" % printer
-       
+                       
         db_cursor.execute("INSERT INTO status (timestamp, name, status, count) VALUES (CURRENT_TIMESTAMP, %s, %s, %s)", \
             (printer, status, pagecount))
     db_conn.commit()
