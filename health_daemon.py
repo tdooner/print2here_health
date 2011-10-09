@@ -64,8 +64,13 @@ def poll():
                             except:
                                 print "Error while sending SMS to %s" % number
                        
-        db_cursor.execute("INSERT INTO status (timestamp, name, status, count) VALUES (CURRENT_TIMESTAMP, %s, %s, %s)", \
-            (printer, status, pagecount))
+        db_cursor.execute("""
+INSERT INTO status (timestamp, name, status, count)
+VALUES (CURRENT_TIMESTAMP, %(name)s, %(status)s,
+CASE WHEN %(count)s = 0 THEN (SELECT count FROM status WHERE name=%(name)s AND count > 0 ORDER BY timestamp DESC LIMIT 1)
+ELSE %(count)s
+END)""", {'name': printer, 'status': status, 'count': pagecount})
+
     db_conn.commit()
     db_cursor.close()
     db_conn.close()
